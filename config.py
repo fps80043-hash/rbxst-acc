@@ -37,8 +37,23 @@ def _parse_admin_ids(raw: str) -> Set[int]:
     return out
 
 
+def _normalize_site_url(raw: str) -> str:
+    """Force https + strip trailing slash. The site serves https-only and
+    redirects http→https with a 301 that turns POST into GET (→ 405 Method Not
+    Allowed on linking/buying). So we never let an http:// or trailing-slash
+    URL through, regardless of how SITE_URL is typed in the env."""
+    u = (raw or "").strip().rstrip("/")
+    low = u.lower()
+    is_local = ("localhost" in low) or ("127.0.0.1" in low)
+    if low.startswith("http://") and not is_local:
+        u = "https://" + u[len("http://"):]
+    elif not low.startswith(("http://", "https://")):
+        u = ("http://" if is_local else "https://") + u
+    return u
+
+
 BOT_TOKEN: str = _get_required("BOT_TOKEN")
-SITE_URL: str = _get_required("SITE_URL").rstrip("/")
+SITE_URL: str = _normalize_site_url(_get_required("SITE_URL"))
 SITE_API_SECRET: str = _get_required("SITE_API_SECRET")
 
 ADMIN_TG_IDS: Set[int] = _parse_admin_ids(_get_optional("ADMIN_TG_IDS"))

@@ -10,6 +10,7 @@ on every update; cache is invalidated on link/unlink.
 """
 from __future__ import annotations
 
+import re
 import time
 from typing import Any, Awaitable, Callable, Dict, Optional
 
@@ -19,6 +20,9 @@ from aiogram.types import CallbackQuery, Message, TelegramObject
 from api import ApiError, api
 from keyboards import link_prompt_kb
 from premoji import pe
+
+# A bare 6-digit link code (so it can reach the linking handler without /link).
+_CODE_RE = re.compile(r"^\s*\d{6}\s*$")
 
 # tg_id -> (linked, expiry).  Only POSITIVE results are cached (so a freshly
 # linked user is recognised within TTL; unlinked users are re-checked each time
@@ -87,6 +91,9 @@ class LinkGate(BaseMiddleware):
             if getattr(event, "successful_payment", None):
                 return await handler(event, data)
             txt = (event.text or "").strip()
+            # A bare 6-digit code is a linking attempt — let it reach the handler.
+            if _CODE_RE.match(txt):
+                return await handler(event, data)
             cmd = txt.split()[0].split("@")[0].lower() if txt else ""
             if cmd in _EXEMPT_CMDS:
                 return await handler(event, data)

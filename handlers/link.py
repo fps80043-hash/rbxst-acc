@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 
 from aiogram import F, Router
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.types import CallbackQuery, Message
 
 from api import ApiError, api
@@ -27,8 +27,8 @@ HOW_TO_LINK = (
     "1️⃣  Открой <a href='{site}'>сайт</a> и войди в свой аккаунт\n"
     "2️⃣  Нажми на свой профиль вверху → вкладка <b>Безопасность</b>\n"
     "3️⃣  В блоке <b>Telegram-бот</b> нажми «Получить код привязки»\n"
-    "4️⃣  Скопируй 6-значный код и пришли мне:\n"
-    "        <code>/link 123456</code>\n\n"
+    "4️⃣  Скопируй 6-значный код и пришли мне — можно просто 6 цифр\n"
+    "        (или <code>/link 123456</code>)\n\n"
     "⏱  Код действует <b>10 минут</b>. Если не успел — сгенерируй новый.\n\n"
     "<i>Если у тебя ещё нет аккаунта — зарегистрируйся на сайте, это бесплатно.</i>"
 ).format(site=SITE_URL)
@@ -119,13 +119,26 @@ async def cmd_link(msg: Message, command):
     code = (command.args or "").strip()
     if not code:
         await msg.answer(
-            "Используй: <code>/link 123456</code>\n\n"
+            "Пришли код: <code>/link 123456</code> — или просто отправь 6 цифр.\n\n"
             "Где взять код — нажми «Как привязать?» ниже.",
             parse_mode="HTML",
             reply_markup=link_prompt_kb(),
         )
         return
     await perform_link(msg, code)
+
+
+@router.message(StateFilter(None), F.text.regexp(r"^\s*\d{6}\s*$"))
+async def msg_bare_code(msg: Message):
+    """Accept a bare 6-digit code without the /link command (only when unlinked
+    and not in the middle of another input)."""
+    try:
+        existing = await api.get_link(msg.from_user.id)
+    except ApiError:
+        existing = None
+    if existing:
+        return  # already linked — don't hijack a plain number
+    await perform_link(msg, msg.text)
 
 
 @router.message(Command("unlink"))
