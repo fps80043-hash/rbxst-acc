@@ -32,7 +32,7 @@ _TTL = 45.0
 
 # Commands anyone may use unlinked (entry points + linking + help).
 # /stars is admin-gated inside its handler, so it's safe to let through the gate.
-_EXEMPT_CMDS = {"/start", "/link", "/unlink", "/help", "/menu", "/stars"}
+_EXEMPT_CMDS = {"/start", "/link", "/unlink", "/help", "/menu", "/stars", "/recover_stars"}
 # Callback prefixes anyone may use unlinked.
 _EXEMPT_CB = ("link:", "help:")
 _EXEMPT_CB_EXACT = {"menu:main"}
