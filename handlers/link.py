@@ -54,11 +54,27 @@ async def perform_link(msg: Message, code: str) -> None:
     except ApiError:
         existing = None
     if existing:
+        # Linking is SHARED across all our bots (one site account, one balance).
+        # So if the user already linked in the other bot, don't scare them — just
+        # confirm and open the menu.
+        try:
+            from middlewares import mark_linked
+            mark_linked(tg_id)
+        except Exception:
+            pass
+        try:
+            profile = await api.get_profile(tg_id)
+            bal = int(profile.get("balance") or 0)
+            is_admin = bool(profile.get("is_admin"))
+            uname = esc(profile.get("username") or "друг")
+        except ApiError:
+            bal, is_admin, uname = 0, False, "друг"
         await msg.answer(
-            "⚠️  <b>Этот Telegram уже привязан</b>\n\n"
-            "Чтобы перепривязать к другому аккаунту — сначала отправь /unlink, "
-            "затем сгенерируй новый код для нового аккаунта.",
-            parse_mode="HTML",
+            f"✅  <b>Аккаунт уже привязан</b>\n{RULE}\n\n"
+            f"Привет, <b>{uname}</b>! Привязка общая для всех наших ботов — "
+            f"повторно подтверждать не нужно.\n\n"
+            f"💰  Баланс:  <b>{fmt_rub(bal)}</b>\n\nОткрываю меню 👇",
+            reply_markup=main_menu_kb(is_admin=is_admin, balance=bal), parse_mode="HTML",
         )
         return
 
